@@ -5,7 +5,9 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
-	"net/url"
+	"time"
+
+	config "github.com/plkumar/gddns/config"
 )
 
 func getIp() (string, error) {
@@ -20,22 +22,58 @@ func getIp() (string, error) {
 	return "", errors.New("error fetching ip address")
 }
 
-func updateDnsIp() error {
+func updateDnsIp(cfg config.Params) (string, error) {
 
+	status := ""
 	ip, err := getIp()
+	if err != nil {
+		fmt.Println(err.Error())
+	}
+
+	client := &http.Client{
+		Timeout: time.Second * 10,
+	}
+	req, err := http.NewRequest("GET", "https://domains.google.com/nic/update", nil)
+	if err != nil {
+		//fmt.Print("Got error %s", err.Error())
+		return "", err
+	}
+
+	req.Header.Set("User-Agent", "Chrome/41.0 kumar.lakshman@gmail.com")
+	req.SetBasicAuth(cfg.Username, cfg.Password)
+
+	q := req.URL.Query()
+	q.Add("hostname", cfg.Hostname)
+	q.Add("myip", ip)
+	req.URL.RawQuery = q.Encode()
+
+	resp, err := client.Do(req)
+
 	if err == nil {
-		fmt.Println("IP :", ip)
+		defer resp.Body.Close()
+		defer client.CloseIdleConnections()
+		scanner := bufio.NewScanner(resp.Body)
+		if scanner.Scan() {
+			status = scanner.Text()
+			fmt.Println(status)
+		}
 	}
 
-	data := url.Values{
-		"hostname": {"home.peethani.me"},
-		"myip":     {},
-	}
-
-	resp, err := http.PostForm("", data)
+	return status, nil
 }
 
 func main() {
 	fmt.Println("Google Dynamic DNS Client")
 
+	y, err := config.GetConfig()
+	if err == nil {
+		for key, host := range y.Gddns {
+			fmt.Println(key)
+
+			err := updateDnsIp(host[key])
+			if err != nil {
+				fmt.Println(err.Error())
+			}
+		}
+	}
 }

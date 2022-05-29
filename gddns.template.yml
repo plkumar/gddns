@@ -1,0 +1,12 @@
+gddns:
+ home.example.com: #friendly printable name 
+    params:
+      hostname: home.example.com #fully qualified dns name as per domains.google.com
+      username: someuser
+      password: somesecret
+
+ demo.xyz.org:
+    params:
+      hostname: demo.xyz.org
+      username: somexuser
+      password: supersecret
