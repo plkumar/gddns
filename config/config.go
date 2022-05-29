@@ -1,7 +1,6 @@
 package config
 
 import (
-	"fmt"
 	"io/ioutil"
 	"log"
 
@@ -20,8 +19,8 @@ type Params struct {
 	Password string `yaml:"password"`
 }
 
-func GetConfig() (Config, error) {
-	data, err := ioutil.ReadFile("gddns.yml")
+func GetConfig(confFile string) (Config, error) {
+	data, err := ioutil.ReadFile(confFile)
 	if err == nil {
 		// ymlString := string(data)
 		// println(ymlString)
@@ -35,7 +34,7 @@ func GetConfig() (Config, error) {
 			return Config{}, err
 		}
 
-		fmt.Printf("%+v\n", y)
+		//fmt.Printf("%+v\n", y)
 		return y, nil
 	}
 

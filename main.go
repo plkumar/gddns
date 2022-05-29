@@ -1,79 +1,49 @@
 package main
 
 import (
-	"bufio"
-	"errors"
+	"flag"
 	"fmt"
-	"net/http"
-	"time"
+	"strings"
 
+	common "github.com/plkumar/gddns/common"
 	config "github.com/plkumar/gddns/config"
+	"github.com/plkumar/gddns/ddns"
 )
-
-func getIp() (string, error) {
-	resp, err := http.Get("https://domains.google.com/checkip")
-	if err == nil {
-		scanner := bufio.NewScanner(resp.Body)
-		if scanner.Scan() {
-			return scanner.Text(), nil
-		}
-	}
-
-	return "", errors.New("error fetching ip address")
-}
-
-func updateDnsIp(cfg config.Params) (string, error) {
-
-	status := ""
-	ip, err := getIp()
-	if err != nil {
-		fmt.Println(err.Error())
-	}
-
-	client := &http.Client{
-		Timeout: time.Second * 10,
-	}
-	req, err := http.NewRequest("GET", "https://domains.google.com/nic/update", nil)
-	if err != nil {
-		//fmt.Print("Got error %s", err.Error())
-		return "", err
-	}
-
-	req.Header.Set("User-Agent", "Chrome/41.0 kumar.lakshman@gmail.com")
-	req.SetBasicAuth(cfg.Username, cfg.Password)
-
-	q := req.URL.Query()
-	q.Add("hostname", cfg.Hostname)
-	q.Add("myip", ip)
-	req.URL.RawQuery = q.Encode()
-
-	resp, err := client.Do(req)
-
-	if err == nil {
-		defer resp.Body.Close()
-		defer client.CloseIdleConnections()
-		scanner := bufio.NewScanner(resp.Body)
-		if scanner.Scan() {
-			status = scanner.Text()
-			fmt.Println(status)
-		}
-	}
-
-	return status, nil
-}
 
 func main() {
 	fmt.Println("Google Dynamic DNS Client")
+	standalone := flag.Bool("standalone", true, "Run in standalone mode.")
+	configFile := flag.String("config", "gddns.yml", "configuration file path.")
 
-	y, err := config.GetConfig()
-	if err == nil {
-		for key, host := range y.Gddns {
-			fmt.Println(key)
+	flag.Parse()
 
-			err := updateDnsIp(host[key])
-			if err != nil {
-				fmt.Println(err.Error())
+	if *standalone {
+		y, err := config.GetConfig(*configFile)
+		if err == nil {
+			gd := ddns.GoogleDDNS{}
+			for key, host := range y.Gddns {
+				fmt.Println("Updating for: ", key)
+				hostParams := host["params"]
+				gd.SetHost(&hostParams)
+
+				status, err := gd.UpdateDDNSIp()
+				if err != nil {
+					fmt.Println(err.Error())
+				} else {
+
+					if strings.Contains(status, "success") {
+						fmt.Println("DNS Updated successfully.")
+					} else if strings.Contains(status, "nochg") {
+						fmt.Println("No Change")
+					} else {
+						// DNS Update failed, log and stop processing current host
+						// TODO: Stop further DNS update attempts to ensure google is not blocking the client
+						fmt.Println(status, common.DDNSStatusMap[status])
+					}
+				}
 			}
+		} else {
+			fmt.Println("Error reading configuration :: ", err)
 		}
 	}
 }
