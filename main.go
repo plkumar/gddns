@@ -2,7 +2,6 @@ package main
 
 import (
 	"flag"
-	"fmt"
 	"log"
 	"os"
 	"os/signal"
@@ -14,7 +13,6 @@ import (
 	config "github.com/plkumar/gddns/config"
 	"github.com/plkumar/gddns/ddns"
 	"github.com/takama/daemon"
-	_ "github.com/takama/daemon"
 )
 
 const (
@@ -22,12 +20,10 @@ const (
 	description = "Google Dynamic DNS Client Daemon"
 )
 
-// dependencies that are NOT required by the service, but might be used
 var dependencies = []string{"dummy.service"}
 
 var stdlog, errlog *log.Logger
 
-// Service has embedded daemon
 type Service struct {
 	daemon.Daemon
 }
@@ -83,34 +79,34 @@ func updateIP(configFile *string) {
 	if err == nil {
 		gd := ddns.GoogleDDNS{}
 		for key, host := range y.Gddns {
-			fmt.Println("Updating for: ", key)
+			stdlog.Println("Updating for: ", key)
 			hostParams := host["params"]
 			gd.SetHost(&hostParams)
 
 			status, err := gd.UpdateDDNSIp()
 			if err != nil {
-				fmt.Println(err.Error())
+				errlog.Println(err.Error())
 			} else {
 
 				if strings.Contains(status, "success") {
-					fmt.Println("DNS Updated successfully.")
+					stdlog.Println("DNS Updated successfully.")
 				} else if strings.Contains(status, "nochg") {
-					fmt.Println("No Change")
+					stdlog.Println("No Change")
 				} else {
 					// DNS Update failed, log and stop processing current host
 					// TODO: Stop further DNS update attempts to ensure google is not blocking the client
-					fmt.Println(status, common.DDNSStatusMap[status])
+					stdlog.Println(status, common.DDNSStatusMap[status])
 				}
 			}
 		}
 	} else {
-		fmt.Println("Error reading configuration :: ", err)
+		errlog.Println("Error reading configuration :: ", err)
 	}
 
 }
 
 func main() {
-	//fmt.Println("Google Dynamic DNS Client")
+	//stdlog.Println("Google Dynamic DNS Client")
 
 	standalone := flag.Bool("standalone", false, "Run in standalone mode.")
 	configFile := flag.String("config", "gddns.yml", "configuration file path.")
@@ -132,6 +128,6 @@ func main() {
 			errlog.Println(status, "\nError: ", err)
 			os.Exit(1)
 		}
-		fmt.Println(status)
+		stdlog.Println(status)
 	}
 }
