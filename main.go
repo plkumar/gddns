@@ -26,24 +26,29 @@ func main() {
 				hostParams := host["params"]
 				gd.SetHost(&hostParams)
 
-				status, err := gd.UpdateDDNSIp()
-				if err != nil {
-					fmt.Println(err.Error())
-				} else {
-
-					if strings.Contains(status, "success") {
-						fmt.Println("DNS Updated successfully.")
-					} else if strings.Contains(status, "nochg") {
-						fmt.Println("No Change")
-					} else {
-						// DNS Update failed, log and stop processing current host
-						// TODO: Stop further DNS update attempts to ensure google is not blocking the client
-						fmt.Println(status, common.DDNSStatusMap[status])
-					}
-				}
+				// DNS Update failed, log and stop processing current host
+				// TODO: Stop further DNS update attempts to ensure google is not blocking the client
+				updateDNS(gd)
 			}
 		} else {
 			fmt.Println("Error reading configuration :: ", err)
+		}
+	}
+}
+
+func updateDNS(gd ddns.GoogleDDNS) {
+	status, err := gd.UpdateDDNSIp()
+	if err != nil {
+		fmt.Println(err.Error())
+	} else {
+
+		if strings.Contains(status, "success") {
+			fmt.Println("DNS Updated successfully.")
+		} else if strings.Contains(status, "nochg") {
+			fmt.Println("No Change")
+		} else {
+
+			fmt.Println(status, common.DDNSStatusMap[status])
 		}
 	}
 }
